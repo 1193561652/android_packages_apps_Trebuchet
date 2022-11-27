@@ -1146,6 +1146,8 @@ public class Launcher extends StatefulActivity<LauncherState> implements Launche
         }
 
         TraceHelper.INSTANCE.endSection(traceToken);
+        Log.e("BAT", "onResume mWorkspace.showPageIndicatorAtCurrentScroll();");
+        mWorkspace.showPageIndicatorAtCurrentScroll();
     }
 
     @Override

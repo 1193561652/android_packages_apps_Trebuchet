@@ -18,6 +18,12 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.FrameLayout;
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Camera;
+import android.graphics.Matrix;
+import android.util.Log;
 
 import com.android.launcher3.DeviceProfile;
 import com.android.launcher3.Insettable;
@@ -60,6 +66,11 @@ public class WorkspacePageIndicator extends View implements Insettable, PageIndi
     private int mTotalScroll;
     private Paint mLinePaint;
     private final int mLineHeight;
+    private float mCurrentPage;
+
+    private Bitmap mBatLogo = null;
+    private Camera camera = new Camera();
+    private Paint paint = new Paint();
 
     private static final Property<WorkspacePageIndicator, Integer> PAINT_ALPHA
             = new Property<WorkspacePageIndicator, Integer>(Integer.class, "paint_alpha") {
@@ -126,6 +137,79 @@ public class WorkspacePageIndicator extends View implements Insettable, PageIndi
         boolean darkText = Themes.getAttrBoolean(mLauncher, R.attr.isWorkspaceDarkText);
         mActiveAlpha = darkText ? BLACK_ALPHA : WHITE_ALPHA;
         mLinePaint.setColor(darkText ? Color.BLACK : Color.WHITE);
+
+        paint.setAntiAlias(true);
+        paint.setColor(Color.BLACK);
+        paint.setStyle(Paint.Style.FILL);
+        paint.setTextAlign(Paint.Align.CENTER);
+        paint.setTextSize(30);
+    }
+
+    private String int2Roman(int num) {
+        final String I[] = new String[] { "0","I","II","III","IV","V","VI","VII","VIII","IX", "X"};
+        if(num >= I.length)
+            num = I.length-1;
+        if(num < 0)
+            num = 0;
+        return I[num];
+    }
+
+    private void batDraw(Canvas canvas) {
+        if (mBatLogo == null)
+            mBatLogo = BitmapFactory.decodeResource(getResources(), R.drawable.batman_icon);
+
+        int currentPageInt = (int)mCurrentPage;
+        // int currentPageInt = (int)mNumPagesFloat;
+        float currentPagedecimals = mCurrentPage - currentPageInt;
+        // float currentPagedecimals = mNumPagesFloat - currentPageInt;
+
+        String strPageNum = "";
+
+        int w = canvas.getWidth();
+        int h = canvas.getHeight();
+        camera.save();
+        final Matrix matrix = new Matrix();
+        matrix.reset();
+        if(currentPagedecimals < 0.5) {
+            camera.rotateY(90 * (currentPagedecimals / 0.5f));
+            strPageNum = int2Roman(currentPageInt+1);
+        } else {
+            camera.rotateY(-90 * ((1.0f - currentPagedecimals)/0.5f));
+            strPageNum = int2Roman(currentPageInt + 2);
+        }
+        camera.getMatrix(matrix);
+        //matrix.postScale(0.2f, 1.0f);
+        matrix.preTranslate(-w/2, -h/2);
+        matrix.postTranslate(w/2, h/2);
+        camera.restore();
+
+        int srcw = mBatLogo.getWidth();
+        int srch = mBatLogo.getHeight();
+        Rect destRect = new Rect(0, 0, w, h);
+        if(w * srch < srcw * h) {   //w / h < srcw / srch
+            int hh = w * srch / srcw;
+            destRect.top +=  (h - hh) / 2;
+            destRect.bottom -= (h - hh) / 2;
+        } else if(w * srch > srcw * h) {    //w / h > srcw / srch
+            int ww = h * srcw / srch;
+            destRect.left += (w - ww) / 2;
+            destRect.right -= (w - ww) / 2;
+        }
+
+        canvas.save();
+
+        canvas.concat(matrix);
+
+
+        canvas.drawBitmap(mBatLogo, new Rect(0, 0, srcw, srch), destRect, paint);
+
+        final Paint.FontMetrics fontMetrics = paint.getFontMetrics();
+        final float top = fontMetrics.top;        //为基线到字体上边框的距离,即上图中的top
+        final float bottom = fontMetrics.bottom;  //为基线到字体下边框的距离,即上图中的bottom
+        final int baseLineY = (int) (h/2 - top/2 - bottom/2);//基线中间点的y轴计算公式
+        canvas.drawText(strPageNum, w/2, baseLineY, paint);
+
+        canvas.restore();
     }
 
     @Override
@@ -133,21 +217,25 @@ public class WorkspacePageIndicator extends View implements Insettable, PageIndi
         if (mTotalScroll == 0 || mNumPagesFloat == 0) {
             return;
         }
+        
+        batDraw(canvas);
 
-        // Compute and draw line rect.
-        float progress = Utilities.boundToRange(((float) mCurrentScroll) / mTotalScroll, 0f, 1f);
-        int availableWidth = getWidth();
-        int lineWidth = (int) (availableWidth / mNumPagesFloat);
-        int lineLeft = (int) (progress * (availableWidth - lineWidth));
-        int lineRight = lineLeft + lineWidth;
+        // // Compute and draw line rect.
+        // float progress = Utilities.boundToRange(((float) mCurrentScroll) / mTotalScroll, 0f, 1f);
+        // int availableWidth = getWidth();
+        // int lineWidth = (int) (availableWidth / mNumPagesFloat);
+        // int lineLeft = (int) (progress * (availableWidth - lineWidth));
+        // int lineRight = lineLeft + lineWidth;
 
-        canvas.drawRoundRect(lineLeft, getHeight() / 2 - mLineHeight / 2, lineRight,
-                getHeight() / 2 + mLineHeight / 2, mLineHeight, mLineHeight, mLinePaint);
+        // canvas.drawRoundRect(lineLeft, getHeight() / 2 - mLineHeight / 2, lineRight,
+        //         getHeight() / 2 + mLineHeight / 2, mLineHeight, mLineHeight, mLinePaint);
     }
 
     @Override
     public void setScroll(int currentScroll, int totalScroll) {
+        Log.e("BAT", "setScroll currentScroll=" + currentScroll + " totalScroll=" + totalScroll);
         if (getAlpha() == 0) {
+            Log.e("BAT", "setScroll Alpha is 0");
             return;
         }
         animateLineToAlpha(mActiveAlpha);
@@ -159,6 +247,15 @@ public class WorkspacePageIndicator extends View implements Insettable, PageIndi
             animateToTotalScroll(totalScroll);
         } else {
             invalidate();
+        }
+
+        Log.v("BAT", "currentScroll:" + currentScroll + " totalScroll:" + totalScroll);
+        //0              1060            2120
+        //0.0    0.5     1.0      1.5    2.0
+        //1               2                3
+
+        if(mNumPagesFloat-1 > 0 && mTotalScroll > 0){
+            mCurrentPage = (float)mCurrentScroll / (mTotalScroll / ((int)mNumPagesFloat-1));
         }
 
         if (mShouldAutoHide) {

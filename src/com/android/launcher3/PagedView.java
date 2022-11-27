@@ -692,6 +692,7 @@ public abstract class PagedView<T extends View & PageIndicator> extends ViewGrou
         boolean pageScrollChanged = false;
         if (mPageScrolls == null || childCount != mPageScrolls.length) {
             mPageScrolls = new int[childCount];
+            // Log.e("BAT", "onLayout childCount=" + childCount);
             pageScrollChanged = true;
         }
 

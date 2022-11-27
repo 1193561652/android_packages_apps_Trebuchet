@@ -1424,6 +1424,7 @@ public class Workspace extends PagedView<WorkspacePageIndicator>
         }
         super.onLayout(changed, left, top, right, bottom);
         updatePageAlphaValues();
+        showPageIndicatorAtCurrentScroll();
     }
 
     @Override
